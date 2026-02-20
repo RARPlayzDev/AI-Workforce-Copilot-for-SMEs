@@ -1,0 +1,6 @@
+18/02/2026, 10:32 - Rahul: Sent invoice #1023
+18/02/2026, 11:10 - Priya: Approved invoice
+18/02/2026, 12:05 - Rahul: Payment received
+18/02/2026, 13:00 - Priya: Refund initiated
+18/02/2026, 14:15 - Rahul: Refund completed
+18/02/2026, 15:00 - System: Media omitted
