@@ -85,6 +85,40 @@ def extract_tasks_from_file(file_path):
 
     return tasks
 
+def parse_time(time_str):
+    return datetime.strptime(time_str, "%Y-%m-%d %H:%M")
+
+def build_workflow(tasks):
+    if len(tasks) == 0:
+        return []
+    tasks_sorted = sorted(tasks, key=lambda x: parse_time(x["timestamp"]))
+    transitions = {}
+    for i in range(len(tasks_sorted) - 1):
+        current=tasks_sorted[i]
+        next_task=tasks_sorted[i + 1]
+        from_action = current["action"]
+        to_action = next_task["action"]
+        t1=parse_time(current["timestamp"])
+        t2=parse_time(next_task["timestamp"])
+        gap = (t2 - t1).total_seconds() / 60
+        key=(from_action, to_action)
+        if key not in transitions:
+            transitions[key] = {
+                "count": 0,
+                "total_time": 0
+            }
+        transitions[key]["count"] += 1
+        transitions[key]["total_time"] += gap
+    workflow = []
+    for(from_a,to_a), data in transitions.items():
+        avg_gap = data["total_time"] / data["count"]
+        workflow.append({
+            "from": from_a,
+            "to": to_a,
+            "count": data["count"],
+            "avg_time_gap_min": round(avg_gap, 2)
+        })
+    return workflow
 
 if __name__ == "__main__":
     file_path = "sample_chat.txt"
@@ -96,3 +130,8 @@ if __name__ == "__main__":
         print(t)
 
     print(f"\nTotal tasks extracted: {len(tasks)}")
+    
+    workflow= build_workflow(tasks)
+    print("\n Workflow Transitions:\n")
+    for w in workflow:
+        print(w)
