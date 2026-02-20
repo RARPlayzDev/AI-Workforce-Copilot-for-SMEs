@@ -120,6 +120,101 @@ def build_workflow(tasks):
         })
     return workflow
 
+def detect_bottlenecks(workflow):
+    if not workflow:
+        return []
+
+    # Calculate overall average delay
+    total = sum(w["avg_time_gap_min"] for w in workflow)
+    overall_avg = total / len(workflow)
+
+    bottlenecks = []
+
+    for w in workflow:
+        if w["avg_time_gap_min"] > overall_avg:
+            bottlenecks.append({
+                "step": f"{w['from']} → {w['to']}",
+                "avg_delay": w["avg_time_gap_min"],
+                "issue": "High delay compared to process average"
+            })
+
+    return bottlenecks
+
+def detect_loops(tasks):
+    if not tasks:
+        return []
+    
+    loops = []
+    visited = set()
+    
+    for i in range(len(tasks)):
+        current_action = tasks[i]["action"]
+        
+        for j in range(i + 1, len(tasks)):
+            if tasks[j]["action"] == current_action and current_action in visited:
+                loops.append((current_action, i, j))
+            visited.add(tasks[j]["action"])
+    
+    return loops
+
+def calculate_loop_penalty(tasks):
+    loops = detect_loops(tasks)
+
+    if not loops:
+        return 0
+
+    # Each loop step deducts 10 points
+    penalty = len(loops) * 10
+    return penalty
+
+def calculate_delay_penalty(workflow):
+    if not workflow:
+        return 0
+
+    total_delay = sum(w["avg_time_gap_min"] for w in workflow)
+    avg_delay = total_delay / len(workflow)
+
+    # Normalize delay impact
+    if avg_delay < 30:
+        return 5
+    elif avg_delay < 60:
+        return 15
+    else:
+        return 25
+
+def calculate_efficiency_score(tasks, workflow):
+    base_score = 100
+
+    loop_penalty = calculate_loop_penalty(tasks)
+    delay_penalty = calculate_delay_penalty(workflow)
+
+    final_score = base_score - (loop_penalty + delay_penalty)
+
+    if final_score < 0:
+        final_score = 0
+
+    return {
+        "efficiency_score": final_score,
+        "loop_penalty": loop_penalty,
+        "delay_penalty": delay_penalty
+    }
+
+def generate_kpi_summary(tasks, workflow):
+    total_steps = len(tasks)
+    unique_steps = len(set(task["action"] for task in tasks))
+
+    total_transitions = sum(w["count"] for w in workflow)
+
+    avg_delay = 0
+    if workflow:
+        avg_delay = sum(w["avg_time_gap_min"] for w in workflow) / len(workflow)
+
+    return {
+        "total_steps": total_steps,
+        "unique_steps": unique_steps,
+        "total_transitions": total_transitions,
+        "average_delay_minutes": round(avg_delay, 2)
+    }
 if __name__ == "__main__":
     file_path = "sample_chat.txt"
 
@@ -135,3 +230,16 @@ if __name__ == "__main__":
     print("\n Workflow Transitions:\n")
     for w in workflow:
         print(w)
+    
+    print("\n--- BOTTLENECKS ---")
+    bottlenecks = detect_bottlenecks(workflow)
+    for b in bottlenecks:
+        print(b)
+
+    print("\n--- KPI SUMMARY ---")
+    kpis = generate_kpi_summary(tasks, workflow)
+    print(kpis)
+
+    print("\n--- EFFICIENCY SCORE ---")
+    efficiency = calculate_efficiency_score(tasks, workflow)
+    print(efficiency)
