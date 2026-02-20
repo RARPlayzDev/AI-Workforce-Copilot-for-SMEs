@@ -290,13 +290,104 @@ def analyze_workflow(file_path):
         "critical_steps": critical_steps
     }
 
+def generate_workflow_summary(workflow):
+    if not workflow:
+        return "No workflow detected."
+
+    summary = "Main workflow transitions:\n"
+
+    for w in workflow:
+        summary += (
+            f"- {w['from']} → {w['to']} "
+            f"(Avg delay: {w['avg_time_gap_min']} mins, Risk: {w['risk_level']})\n"
+        )
+
+    return summary
+
+def generate_bottleneck_summary(bottlenecks):
+    if not bottlenecks:
+        return "No major bottlenecks detected."
+
+    text = "Identified bottlenecks:\n"
+
+    for b in bottlenecks:
+        text += f"- {b['step']} causing delays ({b['avg_delay']} mins)\n"
+
+    return text
+
+def generate_critical_steps_summary(critical_steps, top_n=3):
+    if not critical_steps:
+        return "No critical steps identified."
+
+    text = "Most critical steps impacting efficiency:\n"
+
+    for step in critical_steps[:top_n]:
+        text += (
+            f"- {step['step']} "
+            f"(Frequency: {step['frequency']}, "
+            f"Impact Score: {step['criticality_score']})\n"
+        )
+
+    return text
+
+def generate_loop_summary(loops):
+    if not loops:
+        return "No rework loops detected."
+
+    text = "Repeated steps (possible rework):\n"
+
+    for loop in loops:
+        text += f"- {loop}\n"
+
+    return text
+
+def generate_efficiency_summary(efficiency, kpis):
+    score = efficiency["efficiency_score"]
+
+    text = (
+        f"Overall process efficiency score: {score}/100.\n"
+        f"Average delay between steps: {kpis['average_delay_minutes']} minutes.\n"
+        f"Total steps analyzed: {kpis['total_steps']}.\n"
+    )
+
+    if score > 80:
+        text += "Process is operating efficiently.\n"
+    elif score > 60:
+        text += "Process has moderate inefficiencies.\n"
+    else:
+        text += "Process has significant inefficiencies and needs optimization.\n"
+
+    return text
+
+def build_ai_context(result):
+    workflow_text = generate_workflow_summary(result["workflow"])
+    bottleneck_text = generate_bottleneck_summary(result["bottlenecks"])
+    critical_text = generate_critical_steps_summary(result["critical_steps"])
+    loop_text = generate_loop_summary(result["loops"])
+    efficiency_text = generate_efficiency_summary(result["efficiency"], result["kpis"])
+
+    context = (
+        "Company Process Analysis Report\n"
+        "--------------------------------\n\n"
+        + workflow_text + "\n"
+        + bottleneck_text + "\n"
+        + critical_text + "\n"
+        + loop_text + "\n"
+        + efficiency_text
+    )
+
+    return context
 if __name__ == "__main__":
     file_path = "sample_chat.txt"
 
     result = analyze_workflow(file_path)
 
-    print("\n--- FULL ANALYSIS ---\n")
+    print("\n--- FULL ANALYSIS JSON ---\n")
     print(json.dumps(result, indent=2))
+
+    print("\n--- AI CONTEXT ---\n")
+    context = build_ai_context(result)
+    print(context)
 """if __name__ == "__main__":
     file_path = "sample_chat.txt"
 
