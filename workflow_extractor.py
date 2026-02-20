@@ -1,4 +1,7 @@
 from datetime import datetime
+from collections import Counter
+import json
+
 
 ACTION_KEYWORDS = [
     "sent",
@@ -124,7 +127,6 @@ def detect_bottlenecks(workflow):
     if not workflow:
         return []
 
-    # Calculate overall average delay
     total = sum(w["avg_time_gap_min"] for w in workflow)
     overall_avg = total / len(workflow)
 
@@ -163,7 +165,6 @@ def calculate_loop_penalty(tasks):
     if not loops:
         return 0
 
-    # Each loop step deducts 10 points
     penalty = len(loops) * 10
     return penalty
 
@@ -174,7 +175,6 @@ def calculate_delay_penalty(workflow):
     total_delay = sum(w["avg_time_gap_min"] for w in workflow)
     avg_delay = total_delay / len(workflow)
 
-    # Normalize delay impact
     if avg_delay < 30:
         return 5
     elif avg_delay < 60:
@@ -215,7 +215,89 @@ def generate_kpi_summary(tasks, workflow):
         "total_transitions": total_transitions,
         "average_delay_minutes": round(avg_delay, 2)
     }
+
+def classify_delay_risk(avg_delay):
+    if avg_delay < 30:
+        return "Low"
+    elif avg_delay < 60:
+        return "Medium"
+    else:
+        return "High"
+    
+def add_risk_levels(workflow):
+    for w in workflow:
+        w["risk_level"] = classify_delay_risk(w["avg_time_gap_min"])
+    return workflow
+
+def get_step_criticality(tasks, workflow):
+    freq = Counter(task["action"] for task in tasks)
+
+    delay_map = {}
+
+    for w in workflow:
+        delay_map[w["from"]] = delay_map.get(w["from"], 0) + w["avg_time_gap_min"]
+
+    critical_steps = []
+
+    for step, count in freq.items():
+        delay = delay_map.get(step, 0)
+
+        score = count * delay
+
+        critical_steps.append({
+            "step": step,
+            "frequency": count,
+            "delay_impact": round(delay, 2),
+            "criticality_score": round(score, 2)
+        })
+
+    critical_steps.sort(key=lambda x: x["criticality_score"], reverse=True)
+
+    return critical_steps
+
+def analyze_workflow(file_path):
+    # Step 1
+    tasks = extract_tasks_from_file(file_path)
+
+    # Step 2
+    workflow = build_workflow(tasks)
+
+    # Step 3
+    workflow = add_risk_levels(workflow)
+
+    # Step 4
+    bottlenecks = detect_bottlenecks(workflow)
+
+    # Step 5
+    kpis = generate_kpi_summary(tasks, workflow)
+
+    # Step 6
+    efficiency = calculate_efficiency_score(tasks, workflow)
+
+    # Step 7
+    critical_steps = get_step_criticality(tasks, workflow)
+
+    # Step 8
+    loops = detect_loops(tasks)
+
+    return {
+        "tasks": tasks,
+        "workflow": workflow,
+        "bottlenecks": bottlenecks,
+        "loops": loops,
+        "kpis": kpis,
+        "efficiency": efficiency,
+        "critical_steps": critical_steps
+    }
+
 if __name__ == "__main__":
+    file_path = "sample_chat.txt"
+
+    result = analyze_workflow(file_path)
+
+    print("\n--- FULL ANALYSIS ---\n")
+    print(json.dumps(result, indent=2))
+"""if __name__ == "__main__":
     file_path = "sample_chat.txt"
 
     tasks = extract_tasks_from_file(file_path)
@@ -242,4 +324,4 @@ if __name__ == "__main__":
 
     print("\n--- EFFICIENCY SCORE ---")
     efficiency = calculate_efficiency_score(tasks, workflow)
-    print(efficiency)
+    print(efficiency)"""
